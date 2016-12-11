@@ -149,13 +149,15 @@ public class PhonemicInventory
 class Phoneme implements Serializable
 {
 	protected String symbol, manner;
+	protected String[] representatives;
 	protected double freq;
 	
-	public Phoneme(String symbol, String manner, double freq)
+	public Phoneme(String symbol, String manner, double freq, String[] representatives)
 	{
 		this.symbol = symbol;
 		this.manner = manner;
 		this.freq = freq;
+		this.representatives = representatives;
 	}
 
 	public String getSymbol() {
@@ -176,9 +178,9 @@ class Consonant extends Phoneme
 	private boolean voiced, aspirated; 
 	private String place, modifier;
 
-	public Consonant(String symbol, double freq, boolean voiced, boolean aspirated, String place, String modifier, String manner)
+	public Consonant(String symbol, double freq, boolean voiced, boolean aspirated, String place, String modifier, String manner, String[] representatives)
 	{
-		super(symbol, manner, freq);
+		super(symbol, manner, freq, representatives);
 		this.voiced = voiced;
 		this.aspirated = aspirated;
 		this.place = place;
