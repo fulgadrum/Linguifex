@@ -2,7 +2,11 @@ package phonology;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Random;
 
 public class PhonemicInventory
@@ -10,13 +14,18 @@ public class PhonemicInventory
 
 	public static void main(String[] args)
 	{
-		generateCatalog();
-		Phoneme[] catalog = loadCatalog();
+//		generateCatalog();
+//		Phoneme[] catalog = loadCatalog();
+		Phoneme[] catalog = makeCatalog();
 		
 		List<List<Phoneme>> inventory = new ArrayList<List<Phoneme>>();
+		HashMap<Phoneme, Integer> orthography = new HashMap<Phoneme, Integer>();
+		ArrayList<Phoneme> masterList = new ArrayList<Phoneme>();
 		
 		String[] manners = new String[] {"vowel", "affricate", "approximant", "fricative",
 											"nasal", "plosive"};
+		
+		double orthographicDeviancy = 1.0/3;
 		
 		Random rng = new Random();
 		
@@ -27,7 +36,7 @@ public class PhonemicInventory
 		for (int i = 0; i < 6; i++)
 			inventory.add(new ArrayList<Phoneme>());
 		
-		int rec = 0;
+		int count = 0;
 		
 		// Populate inventory
 		for (Phoneme p : catalog)
@@ -42,13 +51,15 @@ public class PhonemicInventory
 					if (p.getManner().equals(manners[i]))
 					{
 						inventory.get(i).add(p);
-						rec++;
+						masterList.add(p);
+						count++;
 					}
 			}
 		}
 		
+		System.out.println("INVENTORY");
 		// Show results
-		System.out.println("Count: " + rec + "\t(Expected " + expectedPhones + ", arf = " + arf + ")");
+		System.out.println(count + " sounds\t(Expected " + expectedPhones + ", arf = " + arf + ")");
 		
 		for (int i = 0; i < 6; i++)
 		{
@@ -65,24 +76,87 @@ public class PhonemicInventory
 			
 			System.out.println();
 		}
+		
+		System.out.println("\nORTHOGRAPHY");
+		for (Phoneme p : masterList)
+		{
+			for (int i = 0; i < p.getOrthog().length; )
+			{
+				// If we're on the last grapheme on the list, pick it
+				if (i == p.getOrthog().length - 1)
+				{
+					orthography.put(p, i);
+					i = p.getOrthog().length;
+				}
+				
+				// Otherwise, consider the next option
+				else if (rng.nextDouble() < orthographicDeviancy)
+					i++;
+				else
+					orthography.put(p, i);
+			}
+		}
+		
+		// Display results
+		Iterator<Entry<Phoneme, Integer>> itr = orthography.entrySet().iterator();
+		while (itr.hasNext())
+		{
+			Entry<Phoneme, Integer> pair = itr.next();
+			
+			String entry = "/" + pair.getKey().getSymbol() + "/";
+			if (entry.length() == 1)
+				entry = " " + entry;
+			
+			System.out.print(entry + " ");
+		}
+		System.out.println();
+		
+		itr = orthography.entrySet().iterator();
+		while (itr.hasNext())
+		{
+			Entry<Phoneme, Integer> pair = itr.next();
+			
+			String entry = " " + pair.getKey().getOrthog()[pair.getValue()] + " ";
+			if (entry.length() == 1)
+				entry = " " + entry;
+			
+			System.out.print(entry + " ");
+		}
+		
+		
+		
+		
+		
+		// itr.
 	}
 	
-	public static void generateCatalog()
+	class Orthograph
 	{
-		// Populate catalog
+		Phoneme phoneme;
+		int grapheme;
+		
+		public Orthograph (Phoneme phoneme, int grapheme)
+		{
+			this.phoneme = phoneme;
+			this.grapheme = grapheme;
+		}
+	}
+	
+	public static Phoneme[] makeCatalog()
+	{
 		Phoneme[] catalog = new Phoneme[] {
 				// Affricates
-				new Consonant("tʃ",	0.459,	false,	false,	"palato-alveolar",	"sibilant",	"affricate",	new String[] {"ch"}),
-				new Consonant("ts",	0.308,	false,	false,	"alveolar", 		"sibilant",	"affricate",	new String[] {"ts"}),
+				new Consonant("tʃ",	0.459,	false,	false,	"palato-alveolar",	"sibilant",	"affricate",	new String[] {"ch", "c"}),
+				new Consonant("ts",	0.308,	false,	false,	"alveolar", 		"sibilant",	"affricate",	new String[] {"z", "ts"}),
 				new Consonant("dʒ",	0.250,	true,	false,	"palato-alveolar", 	"sibilant",	"affricate",	new String[] {"j"}),
 				new Consonant("dz",	0.120,	true,	false,	"alveolar", 		"sibilant",	"affricate",	new String[] {"dz"}),
 				
 				// Approximants
-				new Consonant("j",	0.836,	true,	false,	"palatal", 			"",			"approximant",	new String[] {"j", "y", "i"}),
+				new Consonant("j",	0.836,	true,	false,	"palatal", 			"",			"approximant",	new String[] {"y", "", "i"}),
 				new Consonant("l",	0.761,	true,	false,	"alveolar", 		"lateral",	"approximant",	new String[] {"l"}),
 				new Consonant("w",	0.734,	true,	false,	"labial-velar", 	"",			"approximant",	new String[] {"w", "u"}),
 				new Consonant("r",	0.703,	true,	false,	"alveolar", 		"",			"trill",		new String[] {"r"}),
-				new Consonant("β̞",	0.043,	true,	false,	"bilabial", 		"",			"approximant",	new String[] {"v", "w"}),
+//				new Consonant("β̞",	0.043,	true,	false,	"bilabial", 		"",			"approximant",	new String[] {"v", "w"}),
 				new Consonant("ʍ",	0.033,	false,	false,	"labial-velar",		"",			"approximant",	new String[] {"wh"}),
 				
 				// Fricatives
@@ -121,14 +195,22 @@ public class PhonemicInventory
 				new Consonant("q",	0.140,	false,	false,	"uvular",			"",			"plosive",	new String[] {"q"}),
 				new Consonant("qʰ",	0.038,	false,	false,	"uvular",			"",			"plosive",	new String[] {"q, qh"}),
 				
-				new Vowel	 ("i",	0.978,	"high",			"front",	false,	new String[] {"i", "y"}),
+				new Vowel	 ("i",	0.978,	"high",			"front",	false,	new String[] {"i"}),
 				new Vowel    ("ä",	0.958,	"low",			"central",	false,	new String[] {"a"}),
 				new Vowel	 ("u",	0.933,	"high",			"back",		true,	new String[] {"u"}),
 				new Vowel	 ("ɛ",	0.871,	"lower mid",	"front",	false,	new String[] {"e"}),
-				new Vowel	 ("o̞",	0.856,	"mid",			"back",		false,	new String[] {"o"}),
+				new Vowel	 ("o",	0.856,	"mid",			"back",		false,	new String[] {"o"}),
 				new Vowel	 ("ə",	0.213,	"mid",			"central",	false,	new String[] {"'", "u", "e"}),
 				new Vowel	 ("y",	0.053,	"high",			"front",	true,	new String[] {"u", "y"})
 			};
+		
+		return catalog;
+	}
+	
+	public static void generateCatalog()
+	{
+		// Populate catalog
+		Phoneme[] catalog = makeCatalog();
 		
 		// Write catalog to file
 		try {
@@ -166,15 +248,15 @@ public class PhonemicInventory
 class Phoneme implements Serializable
 {
 	protected String symbol, manner;
-	protected String[] representatives;
+	protected String[] orthog;
 	protected double freq;
 	
-	public Phoneme(String symbol, String manner, double freq, String[] representatives)
+	public Phoneme(String symbol, String manner, double freq, String[] orthog)
 	{
 		this.symbol = symbol;
 		this.manner = manner;
 		this.freq = freq;
-		this.representatives = representatives;
+		this.orthog = orthog;
 	}
 
 	public String getSymbol() {
@@ -188,6 +270,10 @@ class Phoneme implements Serializable
 	public double getFreq() {
 		return freq;
 	}
+	
+	public String[] getOrthog() {
+		return orthog;
+	}
 }
 
 class Consonant extends Phoneme
@@ -195,9 +281,9 @@ class Consonant extends Phoneme
 	private boolean voiced, aspirated; 
 	private String place, modifier;
 
-	public Consonant(String symbol, double freq, boolean voiced, boolean aspirated, String place, String modifier, String manner, String[] representatives)
+	public Consonant(String symbol, double freq, boolean voiced, boolean aspirated, String place, String modifier, String manner, String[] orthog)
 	{
-		super(symbol, manner, freq, representatives);
+		super(symbol, manner, freq, orthog);
 		this.voiced = voiced;
 		this.aspirated = aspirated;
 		this.place = place;
@@ -235,8 +321,8 @@ class Vowel extends Phoneme
 	private String height, place;
 	private boolean rounded;
 
-	public Vowel(String symbol, double freq, String height, String place, boolean rounded, String[] representatives) {
-		super(symbol, "vowel", freq, representatives);
+	public Vowel(String symbol, double freq, String height, String place, boolean rounded, String[] orthog) {
+		super(symbol, "vowel", freq, orthog);
 		this.height = height;
 		this.place = place;
 		this.rounded = rounded;
