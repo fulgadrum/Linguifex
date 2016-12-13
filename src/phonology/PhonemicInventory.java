@@ -2,11 +2,9 @@ package phonology;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Random;
 
 public class PhonemicInventory
@@ -19,7 +17,8 @@ public class PhonemicInventory
 		Phoneme[] catalog = makeCatalog();
 		
 		List<List<Phoneme>> inventory = new ArrayList<List<Phoneme>>();
-		HashMap<Phoneme, Integer> orthography = new HashMap<Phoneme, Integer>();
+		// HashMap<Phoneme, Integer> orthography = new HashMap<Phoneme, Integer>();
+		List<Orthograph> orthography = new ArrayList<Orthograph>();
 		ArrayList<Phoneme> masterList = new ArrayList<Phoneme>();
 		
 		String[] manners = new String[] {"vowel", "affricate", "approximant", "fricative",
@@ -77,6 +76,8 @@ public class PhonemicInventory
 			System.out.println();
 		}
 		
+		
+		// ORTHOGRAPHY
 		System.out.println("\nORTHOGRAPHY");
 		for (Phoneme p : masterList)
 		{
@@ -85,7 +86,7 @@ public class PhonemicInventory
 				// If we're on the last grapheme on the list, pick it
 				if (i == p.getOrthog().length - 1)
 				{
-					orthography.put(p, i);
+					orthography.add(new Orthograph(p, i));
 					i = p.getOrthog().length;
 				}
 				
@@ -93,58 +94,92 @@ public class PhonemicInventory
 				else if (rng.nextDouble() < orthographicDeviancy)
 					i++;
 				else
-					orthography.put(p, i);
+				{
+					orthography.add(new Orthograph(p, i));
+					i = p.getOrthog().length;
+				}
 			}
 		}
 		
+		Collections.sort(orthography);
+		
 		// Display results
-		Iterator<Entry<Phoneme, Integer>> itr = orthography.entrySet().iterator();
-		while (itr.hasNext())
+		for (Orthograph o : orthography)
 		{
-			Entry<Phoneme, Integer> pair = itr.next();
-			
-			String entry = "/" + pair.getKey().getSymbol() + "/";
-			if (entry.length() == 1)
-				entry = " " + entry;
+			String entry = "/" + o.phoneme.getSymbol() + "/";
+			if (o.phoneme.getSymbol().length() == 1)
+				entry = entry + " ";
 			
 			System.out.print(entry + " ");
 		}
 		System.out.println();
 		
-		itr = orthography.entrySet().iterator();
-		while (itr.hasNext())
+		for (Orthograph o : orthography)
 		{
-			Entry<Phoneme, Integer> pair = itr.next();
-			
-			String entry = " " + pair.getKey().getOrthog()[pair.getValue()] + " ";
+			String entry = o.phoneme.getOrthog()[o.preferredOrthograph];
 			if (entry.length() == 1)
-				entry = " " + entry;
+				entry = entry + " ";
+			entry = " " + entry + " ";
 			
 			System.out.print(entry + " ");
 		}
 		
-		
-		
-		
-		
-		// itr.
+		// Purify orthography
+		Orthograph prev = null;
+		ArrayList<Orthograph> duplicates = new ArrayList<Orthograph>();
+		System.out.println();
+		boolean changes = false;
+		for (int i = 0; i < 5; i++)
+		{
+			System.out.print((i+1) + ":");
+			changes = false;
+			for (Orthograph curr : orthography)
+			{
+				if (prev != null && curr.compareTo(prev) == 0)
+				{
+					changes = true;
+					System.out.print("\t" + prev.phoneme.getSymbol() + "/" + prev.phoneme.getOrthog()[prev.preferredOrthograph] + " --> ");
+					prev.preferredOrthograph = (prev.preferredOrthograph + 1) % prev.phoneme.getOrthog().length;
+					System.out.print(prev.phoneme.getOrthog()[prev.preferredOrthograph]);
+					
+//					System.out.print("\t" + curr.phoneme.getSymbol() + "/" + curr.phoneme.getOrthog()[curr.preferredOrthograph] + " --> ");
+//					curr.preferredOrthograph = (curr.preferredOrthograph + 1) % curr.phoneme.getOrthog().length;
+//					System.out.print(curr.phoneme.getOrthog()[curr.preferredOrthograph]);
+				}
+				prev = curr;
+			}
+			
+			if (!changes)
+			{
+				i = 5;
+				System.out.print("\tAll good!");
+			}
+			System.out.println();
+		}
 	}
 	
-	class Orthograph
+	static class Orthograph implements Comparable<Orthograph>
 	{
 		Phoneme phoneme;
-		int grapheme;
+		int preferredOrthograph;
 		
 		public Orthograph (Phoneme phoneme, int grapheme)
 		{
 			this.phoneme = phoneme;
-			this.grapheme = grapheme;
+			this.preferredOrthograph = grapheme;
+		}
+
+		@Override
+		public int compareTo(Orthograph other)
+		{
+			return phoneme.getOrthog()[preferredOrthograph].compareTo(other.phoneme.getOrthog()[other.preferredOrthograph]);
 		}
 	}
 	
 	public static Phoneme[] makeCatalog()
 	{
 		Phoneme[] catalog = new Phoneme[] {
+				
 				// Affricates
 				new Consonant("tʃ",	0.459,	false,	false,	"palato-alveolar",	"sibilant",	"affricate",	new String[] {"ch", "c"}),
 				new Consonant("ts",	0.308,	false,	false,	"alveolar", 		"sibilant",	"affricate",	new String[] {"z", "ts"}),
@@ -152,7 +187,7 @@ public class PhonemicInventory
 				new Consonant("dz",	0.120,	true,	false,	"alveolar", 		"sibilant",	"affricate",	new String[] {"dz"}),
 				
 				// Approximants
-				new Consonant("j",	0.836,	true,	false,	"palatal", 			"",			"approximant",	new String[] {"y", "", "i"}),
+				new Consonant("j",	0.836,	true,	false,	"palatal", 			"",			"approximant",	new String[] {"y", "j", "i"}),
 				new Consonant("l",	0.761,	true,	false,	"alveolar", 		"lateral",	"approximant",	new String[] {"l"}),
 				new Consonant("w",	0.734,	true,	false,	"labial-velar", 	"",			"approximant",	new String[] {"w", "u"}),
 				new Consonant("r",	0.703,	true,	false,	"alveolar", 		"",			"trill",		new String[] {"r"}),
@@ -178,8 +213,8 @@ public class PhonemicInventory
 				new Consonant("n",	0.956,	true,	false,	"alveolar",			"",			"nasal",	new String[] {"n"}),
 				new Consonant("m",	0.940,	true,	false,	"bilabial",			"",			"nasal",	new String[] {"m"}),
 				new Consonant("ŋ",	0.525,	true,	false,	"velar",			"",			"nasal",	new String[] {"ng"}),
-				new Consonant("m̥",	0.038,	false,	false,	"bilabial",			"",			"nasal",	new String[] {"mh"}),
-				new Consonant("n̥",	0.020,	false,	false,	"alveolar",			"",			"nasal",	new String[] {"nh"}),
+				new Consonant("m_",	0.038,	false,	false,	"bilabial",			"",			"nasal",	new String[] {"mh"}),
+				new Consonant("n_",	0.020,	false,	false,	"alveolar",			"",			"nasal",	new String[] {"nh"}),
 				
 				// Plosive
 				new Consonant("k",	0.920,	false,	false,	"velar",			"",			"plosive",	new String[] {"k", "c", "q"}),
@@ -193,7 +228,7 @@ public class PhonemicInventory
 				new Consonant("kʰ",	0.228,	false,	true,	"velar",			"",			"plosive",	new String[] {"k", "kh"}),
 				new Consonant("pʰ",	0.224,	false,	true,	"bilabial",			"",			"plosive",	new String[] {"p", "ph"}),
 				new Consonant("q",	0.140,	false,	false,	"uvular",			"",			"plosive",	new String[] {"q"}),
-				new Consonant("qʰ",	0.038,	false,	false,	"uvular",			"",			"plosive",	new String[] {"q, qh"}),
+				new Consonant("qʰ",	0.038,	false,	false,	"uvular",			"",			"plosive",	new String[] {"q", "qh"}),
 				
 				new Vowel	 ("i",	0.978,	"high",			"front",	false,	new String[] {"i"}),
 				new Vowel    ("ä",	0.958,	"low",			"central",	false,	new String[] {"a"}),
