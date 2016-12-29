@@ -30,6 +30,7 @@ public class Phonology
 	private ArrayList<List<Segment>> sortedCodaPhonemes;
 	private Segment initialCoda;
 	private double nucleusClusterRate;
+	private double targetWeight;
 	
 	public static void main(String[] args)
 	{		
@@ -49,11 +50,35 @@ public class Phonology
 			if (phonology.coda.length() > 0)
 				phonology.MakePhonotactics3();
 			
+			phonology.MakeWordStructure();
+			
+			List<String> names = new ArrayList<String>();
+			
 			// Generate some random names yeah!!!!!!!
-			for (int i = 0; i < 25; i++)
+			int nameCount = 40;
+			for (int i = 0; i < nameCount; i++)
 			{
-				System.out.println(phonology.generateName());
+				names.add(phonology.generateName());
 			}
+			
+			Collections.sort(names);
+			
+			System.out.println("Language: " + phonology.generateName().toUpperCase());
+			for (int i = 0; i < nameCount / 5; i++)
+			{
+				for (int j = i; j < nameCount; j += nameCount / 5)
+				{
+					System.out.print(names.get(j) + "\t");
+					if (names.get(j).toString().length() < 8)
+						System.out.print("\t");
+				}
+				System.out.println();
+				
+				
+				
+			}
+			System.out.println();
+			System.out.println("Target weight: " + phonology.targetWeight);
 			
 		counts = new HashMap<Integer, Integer>(20);
 	}
@@ -136,6 +161,9 @@ public class Phonology
 	
 	public void MakeInventory()
 	{
+//		double intendedAverage = 20.507;
+		double intendedAverage = 15;
+		
 		inventory = new ArrayList<List<Phone>>();
 		for (int i = 0; i < manners.length; i++)
 			inventory.add(new ArrayList<Phone>());
@@ -143,9 +171,9 @@ public class Phonology
 		masterList = new ArrayList<Segment>();
 		
 		
-		double expectedPhones = 20.507;
-		expectedPhones = ((rng.nextGaussian() * 5) + 20.507);
-		double arf = (expectedPhones - 20.507) / (46 - 20.507);
+		double expectedPhones = intendedAverage;
+		expectedPhones = ((rng.nextGaussian() * 3) + intendedAverage);
+		double arf = (expectedPhones - intendedAverage) / (46 - intendedAverage);
 		
 		for (int i = 0; i < 6; i++)
 			inventory.add(new ArrayList<Phone>());
@@ -522,7 +550,7 @@ public class Phonology
 				else
 					System.out.printf("-->$ (%.2f)\t", kv.getValue());
 			}
-			System.out.println();
+			System.out.println("\n");
 		}
 	}
 	
@@ -533,6 +561,8 @@ public class Phonology
 		
 		// Probability of phoneme being an acceptable coda
 		double codaInclusionRate = Math.min(1, 1 + rng.nextGaussian() * 0.25);
+//		double codaInclusionRate = Math.pow(rng.nextDouble(), 2);
+		System.out.println("Coda Inclusion Rate: " + codaInclusionRate);
 		
 		// Allowed phonemes in coda list
 		ArrayList<Segment> allowedInCoda = new ArrayList<Segment>();
@@ -624,9 +654,42 @@ public class Phonology
 					else
 						System.out.printf("-->$ (%.2f)\t", kv.getValue());
 				}
-				System.out.println();
+				System.out.println("\n");
 			}
 		}
+	}
+	
+	public void MakeWordStructure()
+	{
+		/*	Minimum word "weight" should be 2
+		 *	Languages with shorter syllables should prefer longer names to compensate
+		 * 	Syllable weight system: consonant = 1, vowel = 0.5
+		 * 	Generate upper and lower limits for syllable weight
+		 *  Stdev should equal 1/4 of diff btwn upper and lower limit
+		 * 
+		 */
+		
+		ArrayList<Syllable> suffixes;
+		
+		targetWeight = Math.max(3 + rng.nextGaussian() / 2, 2);
+		
+//		int suffixNum = (int) (rng.nextGaussian() * 5);
+//		System.out.println("Suffixes: " + suffixNum);
+//		if (suffixNum > 0)
+//		{
+//			suffixes = new ArrayList<Syllable>();
+//			
+//			for (int i = 0; i < suffixNum; i++)
+//			{
+//				Syllable suff = new Syllable (this);
+//				suffixes.add(suff);
+//				System.out.println("  " + suff.buildString());
+//			}
+//			
+//		}
+		
+		
+		
 	}
 	
 	public ArrayList<Segment> generateOnset(boolean nonEmpty)
@@ -676,7 +739,7 @@ public class Phonology
 	
 	public ArrayList<Segment> generateCoda()
 	{
-		double clusteros = 0.3;
+		double clusteros = 1;
 		ArrayList<Segment> codaCluster = new ArrayList<Segment>();
 
 		Segment curr = initialCoda;
@@ -698,22 +761,47 @@ public class Phonology
 	
 	public String generateName()
 	{
-		Syllable syl1 = new Syllable(this);
-		Syllable syl2 = new Syllable(this);
+		double target = Math.max(targetWeight + rng.nextGaussian() * targetWeight / 2, 2);
+		double nameWeight = 0;
 		
-		Segment s1 = syl1.content().get(syl1.content().size() - 1);
-		Segment s2 = syl2.content().get(0);
+		ArrayList<Syllable> syls = new ArrayList<Syllable>();
 		
 		String result = "";
 		
-		if (syl1.coda.size() == 0 && syl2.onset.size() == 0 &&
-				((Vowel) s2.phone).getHeight() >= ((Vowel) s1.phone).getHeight())
+		while (nameWeight < target)
 		{
-//			result += "!";
-			syl2.onset = generateOnset(true);
+			Syllable next = new Syllable(this);
+			
+			if (syls.size() > 0)
+			{
+				Syllable prev = syls.get(syls.size() - 1); 
+				
+				Segment s1 = prev.content().get(prev.content().size() - 1);
+				Segment s2 = next.content().get(0);
+				
+				if (prev.coda.size() == 0 && next.onset.size() == 0 &&
+					(((Vowel) s2.phone).getHeight() >= ((Vowel) s1.phone).getHeight()) ||
+					s1.phone.getSymbol().equals("~"))
+				{
+					next.onset = generateOnset(true);
+				}
+			}
+			
+			for (Segment s : next.content())
+				if (s.phone.getManner() == 11)
+					nameWeight += 0.5;
+				else
+					nameWeight += 1;
+			
+//			if (syls.size() > 0)
+//				result += ".";
+			result += next.buildString();
+			
+			syls.add(next);
+			
 		}
-		
-		return result + syl1.buildString() + "" + syl2.buildString();
+	
+		return result.substring(0, 1).toUpperCase() + result.substring(1);
 	}
 	
 	public Segment selectSegment(HashMap<Segment, Double> choices, int element, boolean nonEmpty)
@@ -727,7 +815,7 @@ public class Phonology
 		{
 			next = (Entry<Segment, Double>) itr.next();
 			
-			if (next.getKey().phone != null || !nonEmpty)
+			if ( !(next.getKey().phone == null && nonEmpty))
 				total += (Double) next.getValue();
 		}
 				
@@ -807,7 +895,7 @@ public class Phonology
 				new Consonant("l",	0.761,	true,	false,	"alveolar", 		"lateral",	7,		new String[] {"l"}),
 				new Consonant("w",	0.734,	true,	false,	"labial-velar", 	"",			9,		new String[] {"ü", "w"}),
 				new Consonant("r",	0.703,	true,	false,	"alveolar", 		"",			8,		new String[] {"r"}),
-				new Consonant("ʍ",	0.033,	false,	false,	"labial-velar",		"",			10,		new String[] {"w", "wh"}),
+//				new Consonant("ʍ",	0.033,	false,	false,	"labial-velar",		"",			10,		new String[] {"w", "wh"}),
 				
 				// Fricatives
 				new Consonant("s",	0.818,	false,	false,	"alveolar",			"sibilant",	0,	new String[] {"s"}),
@@ -828,8 +916,8 @@ public class Phonology
 				new Consonant("n",	0.956,	true,	false,	"alveolar",			"",			6,	new String[] {"n"}),
 				new Consonant("m",	0.940,	true,	false,	"bilabial",			"",			6,	new String[] {"m"}),
 				new Consonant("ŋ",	0.525,	true,	false,	"velar",			"",			6,	new String[] {"ng"}),
-				new Consonant("m.",	0.038,	false,	false,	"bilabial",			"",			10,	new String[] {"mh"}),
-				new Consonant("n.",	0.020,	false,	false,	"alveolar",			"",			10,	new String[] {"nh"}),
+//				new Consonant("m.",	0.038,	false,	false,	"bilabial",			"",			10,	new String[] {"mh"}),
+//				new Consonant("n.",	0.020,	false,	false,	"alveolar",			"",			10,	new String[] {"nh"}),
 				
 				// Plosive
 				new Consonant("k",	0.920,	false,	false,	"velar",			"",			1,	new String[] {"k", "c", "q"}),
