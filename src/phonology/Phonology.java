@@ -31,6 +31,9 @@ public class Phonology
 	private Segment initialCoda;
 	private double nucleusClusterRate;
 	private double targetWeight;
+	private boolean restrictInitialOpenSyllables;
+	
+	static Consonant longCon;
 	
 	public static void main(String[] args)
 	{		
@@ -52,6 +55,7 @@ public class Phonology
 			
 			phonology.MakeWordStructure();
 			
+			
 			List<String> names = new ArrayList<String>();
 			
 			// Generate some random names yeah!!!!!!!
@@ -63,7 +67,8 @@ public class Phonology
 			
 			Collections.sort(names);
 			
-			System.out.println("Language: " + phonology.generateName().toUpperCase());
+			System.out.println("Language: " + phonology.generateName().toUpperCase() + " (" +
+								phonology.onset + "V" + phonology.coda + ")");
 			for (int i = 0; i < nameCount / 5; i++)
 			{
 				for (int j = i; j < nameCount; j += nameCount / 5)
@@ -117,22 +122,22 @@ public class Phonology
 		
 			if (codaTransitionProbability == null)
 				codaTransitionProbability = new double[][] {
-					{0, 1, 0, 0, 0, 0, 1, 1, 1, 1},	// s
-					{0, 0, 0, 0, 0, 0, 1, 1, 1, 1},	// unvoiced plosives
-					{0, 0, 0, 0, 0, 0, 1, 1, 1, 1},	// voiced plosives
-					{0, 0, 0, 0, 0, 0, 0, 0, 0, 1},	// affricates
-					{0, 0, 0, 0, 0, 0, 0, 1, 1, 1},	// unvoiced fricatives
-					{0, 0, 0, 0, 0, 0, 0, 0, 1, 1},	// voiced fricatives
-					{0, 0, 0, 0, 0, 0, 0, 0, 0, 1},	// nasals
-					{0, 0, 0, 0, 0, 0, 0, 0, 0, 1},	// L's
-					{0, 0, 0, 0, 0, 0, 0, 0, 0, 1},	// R's
-					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},	// glides
-					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}	// others
+					{1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1},	// s
+					{1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1},	// unvoiced plosives
+					{1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1},	// voiced plosives
+					{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},	// affricates
+					{1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1},	// unvoiced fricatives
+					{1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1},	// voiced fricatives
+					{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},	// nasals
+					{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},	// L's
+					{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},	// R's
+					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},	// glides
+					{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}	// others
 				};
 			
-		if (initialOnset == null)
-			initialOnset = new Segment(null, 0);
-			
+		if (longCon == null)
+			longCon = new Consonant("2", 0, false, false, "", "", -1, new String[] {""});
+		
 		makeCatalog();
 	}
 	
@@ -356,7 +361,6 @@ public class Phonology
 				onset = "C" + onset;
 			else if (random > 1f/3 && coda.length() < 4)
 				coda = coda + "C";
-		
 		}
 	}
 	
@@ -428,7 +432,7 @@ public class Phonology
 		if (onset.length() > 1)
 		{
 			// Populate onsetNext hierarchy
-			double clusterPermissiveness = Math.min(rng.nextDouble() + 0.15, 1);
+			double clusterPermissiveness = Math.min(rng.nextDouble() + 0.1 * onset.length(), 1);
 			System.out.println("Cluster permissiveness: " + clusterPermissiveness);
 			for (Segment o : allowedInOnset)
 			{
@@ -436,7 +440,6 @@ public class Phonology
 				double totalFreq = 0;
 				for (int i = row; i < onsetTransitionProbability[row].length; i++)
 				{
-//					System.out.println(manners[row] + " to " + manners[i] + ":\t\t" + transitionProbability[row][i]);
 					if (onsetTransitionProbability[row][i] > 0)
 						for (Segment next : sortedOnsetPhonemes.get(i))
 							if (rng.nextDouble() < clusterPermissiveness)
@@ -511,7 +514,7 @@ public class Phonology
 			initialNucleus.nucleusNext.put(o, o.nucleusFreq);
 		
 		// Populate nucleusNext hierarchy
-		double diphthongos = Math.max(0.25*rng.nextGaussian() + 0.5, 0);
+		double diphthongos = Math.sqrt(rng.nextDouble());
 		System.out.println("Diphthong permissiveness: " + diphthongos);
 		for (Segment o : allVowels)
 		{
@@ -550,14 +553,19 @@ public class Phonology
 				else
 					System.out.printf("-->$ (%.2f)\t", kv.getValue());
 			}
-			System.out.println("\n");
+			System.out.println("");
 		}
+		System.out.println();
 	}
 	
 	public void MakePhonotactics3()
 	{
 		if (coda.length() == 0)
 			return;
+		
+		boolean includeLongConsonants = false;
+		if (rng.nextDouble() < 1.25)
+			includeLongConsonants = true;
 		
 		// Probability of phoneme being an acceptable coda
 		double codaInclusionRate = Math.min(1, 1 + rng.nextGaussian() * 0.25);
@@ -583,22 +591,26 @@ public class Phonology
 			}
 		}
 		
-		System.out.println("Coda characters");
-		
+		if (includeLongConsonants)
+		{
+			Segment s = new Segment(longCon, 0);
+			allowedInCoda.add(s);
+			s.codaFreq = Math.max(0.5 + rng.nextGaussian() * 0.25, 0.01);
+		}
 		
 		// Make a new list of lists to hold orthographs by category
 		sortedCodaPhonemes = new ArrayList<List<Segment>>();
 		for (int i = 0; i < manners.length; i++)
 			sortedCodaPhonemes.add(new ArrayList<Segment>());
 		
-		// Populate list-list of onset orthographs
+		// Populate list-list of coda orthographs
 		for (int i = 0; i < allowedInCoda.size(); i++)
 		{
 			Segment o = allowedInCoda.get(i);
 			Phone p = allowedInCoda.get(i).phone;
 			
 			if (p.getManner() < 11)
-				sortedCodaPhonemes.get(p.getManner()).add(o);
+				sortedCodaPhonemes.get(p.getManner()+1).add(o);
 		}
 		
 		// Set up initial ghost orthograph
@@ -607,8 +619,12 @@ public class Phonology
 		initialCoda.codaNext = new HashMap<Segment, Double>();
 		for (Segment o : allowedInCoda)
 		{
-			initialCoda.codaNext.put(o, o.codaFreq);
-			total += o.codaFreq;
+			if (o.phone != longCon)
+			{
+				initialCoda.codaNext.put(o, o.codaFreq);
+				total += o.codaFreq;				
+			}
+			
 		}
 		initialCoda.codaNext.put(initialCoda, Math.max(total * rng.nextGaussian() / 2 + total, 0));
 		
@@ -620,7 +636,9 @@ public class Phonology
 			System.out.println("Cluster permissiveness: " + clusterPermissiveness);
 			for (Segment s : allowedInCoda)
 			{
-				int row = s.phone.getManner();
+				if (s.phone == longCon)
+					break;
+				int row = s.phone.getManner()+1;
 				double totalFreq = 0;
 				for (int i = 0; i <= row; i++)
 				{
@@ -633,30 +651,34 @@ public class Phonology
 							}
 				}
 				
-				double endChance = Math.max(totalFreq * rng.nextGaussian() / 2 + totalFreq, 0);
-				s.codaNext.put(initialCoda, endChance);
+				double endChance = Math.max(totalFreq * rng.nextGaussian() + totalFreq, 0);
+				if (endChance > 0)
+					s.codaNext.put(initialCoda, endChance);
 			}
 			
 			System.out.println();
 			
-			// Print coda phoneme transitions
-			System.out.println("Allowable Clusters");
 			
-			for (Segment o : allowedInCoda)
-			{
-				System.out.print(o.phone.getSymbol() + "\t");
-				Iterator itr = o.codaNext.entrySet().iterator();
-				while (itr.hasNext())
-				{
-					Entry<Segment, Double> kv = (Entry) itr.next();
-					if (kv.getKey().phone != null)
-						System.out.printf("-->%s (%.2f)\t", kv.getKey().phone.getSymbol(), kv.getValue());
-					else
-						System.out.printf("-->$ (%.2f)\t", kv.getValue());
-				}
-				System.out.println("\n");
-			}
 		}
+		
+		// Print coda phoneme transitions
+		System.out.println("Allowable Clusters");
+		
+		for (Segment o : allowedInCoda)
+		{
+			System.out.print(o.phone.getSymbol() + "\t");
+			Iterator itr = o.codaNext.entrySet().iterator();
+			while (itr.hasNext())
+			{
+				Entry<Segment, Double> kv = (Entry) itr.next();
+				if (kv.getKey().phone != null)
+					System.out.printf("-->%s (%.2f)\t", kv.getKey().phone.getSymbol(), kv.getValue());
+				else
+					System.out.printf("-->$ (%.2f)\t", kv.getValue());
+			}
+			System.out.println("");
+		}
+		System.out.println();
 	}
 	
 	public void MakeWordStructure()
@@ -672,6 +694,12 @@ public class Phonology
 		ArrayList<Syllable> suffixes;
 		
 		targetWeight = Math.max(3 + rng.nextGaussian() / 2, 2);
+		
+		restrictInitialOpenSyllables = true;	// if true, prevents a word from beginning with
+														// two consecutive open syllables
+		if (rng.nextDouble() < 0.2)
+			restrictInitialOpenSyllables = false;
+		
 		
 //		int suffixNum = (int) (rng.nextGaussian() * 5);
 //		System.out.println("Suffixes: " + suffixNum);
@@ -761,7 +789,7 @@ public class Phonology
 	
 	public String generateName()
 	{
-		double target = Math.max(targetWeight + rng.nextGaussian() * targetWeight / 2, 2);
+		double target = Math.max(targetWeight + rng.nextGaussian() * targetWeight / 3, 1.5);
 		double nameWeight = 0;
 		
 		ArrayList<Syllable> syls = new ArrayList<Syllable>();
@@ -781,7 +809,8 @@ public class Phonology
 				
 				if (prev.coda.size() == 0 && next.onset.size() == 0 &&
 					(((Vowel) s2.phone).getHeight() >= ((Vowel) s1.phone).getHeight()) ||
-					s1.phone.getSymbol().equals("~"))
+					s1.phone.getSymbol().equals("~") ||
+					(syls.size() == 1 && restrictInitialOpenSyllables))
 				{
 					next.onset = generateOnset(true);
 				}
@@ -795,12 +824,12 @@ public class Phonology
 			
 //			if (syls.size() > 0)
 //				result += ".";
-			result += next.buildString();
-			
 			syls.add(next);
 			
 		}
 	
+		result = nameToString(syls);
+		
 		return result.substring(0, 1).toUpperCase() + result.substring(1);
 	}
 	
@@ -843,6 +872,102 @@ public class Phonology
 		return null;
 	}
 
+	public String nameToString(ArrayList<Syllable> syls)
+	{
+		StringBuilder sb = new StringBuilder();
+		
+		// Preprocessing for long consonants
+//		for (int j = 0; j < syls.size(); j++)
+//		{
+//			ArrayList<Segment> syl = syls.get(j).content();
+//			for (int i = 0; i < syl.size(); i++)
+//			{
+//				if (syl.get(i).phone.getSymbol().equals("2"))
+//				{
+//					
+//					if (j == syls.size() - 1 &&			// if this is the last syllable, and
+//						i == syl.size() - 1  &&			// this is the last segment in the coda, and
+//						syls.get(j).coda.size() == 2)	// only 1 segment precedes this in the coda
+//					{
+//						Segment temp = syl.get(i - 1);
+//						syl.remove(i);
+//						syl.add(i, temp);
+//						sb.append("!");
+//					}	
+//					else
+//					{
+//						sb.append("?");
+//						syl.remove(i);
+//					}
+//				}
+//			}
+//		}
+		
+		for (int j = 0; j < syls.size(); j++)
+		{
+			ArrayList<Segment> syl = syls.get(j).content();
+			
+			for (int i = 0; i < syl.size(); i++)
+			{
+				String graph = syl.get(i).phone.getOrthog()[syl.get(i).orthography];
+				
+//				// compress long digraph consonants in coda
+//				if (j == syls.size() - 1 &&			// if this is the last syllable of the word
+//					syls.get(j).coda.size() > 0 &&	// and this syllable has a coda
+//					i < syl.size() - 1 && 			// and this is not the last segment of it
+//					syl.get(i) == syl.get(i+1))		// and the next segment is the same as this one		 
+//				{
+//					sb.append(syl.get(i+1).phone.getOrthog()[syl.get(i+1).orthography].charAt(0));
+//				} else
+				
+				// compress digraphs duplicated across syllables
+				if (i == syl.size() - 1 &&	// if this is the last segment of the current word, and
+					j < syls.size() - 1 &&	 		// if this is not the last syllable of the word, and
+					syls.get(j+1).onset.size() > 0 &&	// if the next syllable is closed, and
+					syl.get(i) == syls.get(j+1).onset.get(0)) // the next segment is the same as this
+				{
+					if (syl.get(i).phone.getSymbol().equals("k"))
+						sb.append("c");
+					else
+						sb.append(graph.charAt(0));
+				}
+				
+				else if (graph.equals("ï"))
+				{
+					if (i == 0)
+						sb.append("y");
+					else if (i > 0 && i + 1 < syl.size() && syl.get(i+1).phone.getManner() == 11 &&
+						syl.get(i+1).phone.getSymbol() != "i")
+					{
+						sb.append("i");
+					}
+					else
+						sb.append("y");
+				}
+				
+				else if (graph.equals("ü"))
+				{
+					if (i > 0 && i + 1 < syl.size() && syl.get(i+1).phone.getManner() == 11 &&
+							syl.get(i+1).phone.getSymbol() != "u")
+					{
+						sb.append("u");
+					}
+					else
+						sb.append("w");
+				}
+				
+				else if (graph.equals("~"))
+					sb.append(syl.get(i-1).phone.getOrthog()[syl.get(i-1).orthography]);
+				
+				else
+					sb.append(graph);
+			}
+		}
+		
+		
+		return sb.toString();
+	}
+	
 	public void printInventory()
 	{
 		System.out.println("INVENTORY");
@@ -1000,49 +1125,6 @@ class Syllable
 //		phoneticSpelling = sb.toString();
 	}
 
-	public String buildString()
-	{
-		ArrayList<Segment> syl = content();
-		
-		// Build string version
-		StringBuilder sb = new StringBuilder();
-		for (int i = 0; i < syl.size(); i++)
-		{
-			String graph = syl.get(i).phone.getOrthog()[syl.get(i).orthography];
-			
-			if (graph.equals("ï"))
-			{
-				if (i == 0)
-					sb.append("y");
-				else if (i > 0 && i + 1 < syl.size() && syl.get(i+1).phone.getManner() == 11 &&
-					syl.get(i+1).phone.getSymbol() != "i")
-				{
-					sb.append("i");
-				}
-				else
-					sb.append("y");
-			}
-			
-			else if (graph.equals("ü"))
-			{
-				if (i > 0 && i + 1 < syl.size() && syl.get(i+1).phone.getManner() == 11 &&
-						syl.get(i+1).phone.getSymbol() != "u")
-				{
-					sb.append("u");
-				}
-				else
-					sb.append("w");
-			}
-			
-			else if (graph.equals("~"))
-				sb.append(syl.get(i-1).phone.getOrthog()[syl.get(i-1).orthography]);
-			
-			else
-				sb.append(graph);
-		}
-		
-		return sb.toString();
-	}
 	
 	public ArrayList<Segment> content()
 	{
